@@ -1,0 +1,36 @@
+#!groovy
+
+timeout(time: 60, unit: 'MINUTES'){
+	node {
+	  // Invoke OpenShift Build to package the parking.war file
+	  // with the S2I image.
+	  
+	  stage('Checkout') {
+        checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/pragathibaskar/gestion-backend.git']]])
+      }
+	  def version = readMavenPom().getVersion()
+	  
+	  stage('OpenShift Build') {
+		sh "oc project consum-dev"
+		openshiftBuild apiURL: '', authToken: '', bldCfg: 'parking-api', waitTime: '1800000', checkForTriggeredDeployments: 'false', namespace: 'consum-dev', verbose: 'false'
+		openshiftVerifyBuild apiURL: '', authToken: '', bldCfg: 'parking-api', checkForTriggeredDeployments: 'false', namespace: 'consum-dev', verbose: 'false'
+		openshiftTag alias: 'false', apiURL: '', authToken: '', destStream: 'parking-api', destTag: "consum-dev-${version}", destinationAuthToken: '', destinationNamespace: 'consum-dev', namespace: 'consum-dev', srcStream: 'parking-api', srcTag: 'latest', verbose: 'false'
+	  }
+	  
+	  // Deploy the created S2I Image
+	  stage('OpenShift Deployment') {
+		sh "oc patch dc parking-api --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"parking-api\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"parking-api:consum-dev-$version\"}}}]}}' -n consum-dev"
+		openshiftDeploy apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'consum-dev', verbose: 'false', waitTime: ''
+		openshiftScale apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'consum-dev', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false'
+		openshiftVerifyDeployment apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'consum-dev', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: ''
+	  }
+	  //stage('Verify Service') {
+		// Starting the parking application takes a long time.
+		// Retrying 5 times to contact the service to make sure
+		// we give enough time for the container to be fully ready.
+		//retry(5) {
+		 // openshiftVerifyService apiURL: '', authToken: '', namespace: 'consum-dev', svcName: 'parking-api', verbose: 'false'
+		//}
+	  //}
+	}
+}
