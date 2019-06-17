@@ -2,7 +2,7 @@
 
 timeout(time: 60, unit: 'MINUTES'){
 	node {
-	  // Invoke OpenShift Build to package the parking.war file
+	  // Invoke OpenShift Build to package the entertainment.war file
 	  // with the S2I image.
 	  
 	  stage('Checkout') {
@@ -24,13 +24,14 @@ timeout(time: 60, unit: 'MINUTES'){
 		openshiftScale apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'consum-dev', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false'
 		openshiftVerifyDeployment apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'consum-dev', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: ''
 	  }
-	  //stage('Verify Service') {
-		// Starting the parking application takes a long time.
+	  stage('Verify Service') {
+		// Starting the entertainment application takes a long time.
 		// Retrying 5 times to contact the service to make sure
 		// we give enough time for the container to be fully ready.
-		//retry(5) {
-		 // openshiftVerifyService apiURL: '', authToken: '', namespace: 'consum-dev', svcName: 'parking-api', verbose: 'false'
-		//}
-	  //}
+		retry(5) {
+		  // Verify service step fails on cluster.
+		  // openshiftVerifyService apiURL: '', authToken: '', namespace: 'dev', svcName: 'parking-api', verbose: 'false'
+		}
+	  }
 	}
 }
