@@ -46,7 +46,7 @@ def selectVersion(imageName, tagPrefix, namespace) {
 		sh "oc get istag -n ${namespace} --sort-by='{.metadata.name}'| grep ${imageName}| grep ${tagPrefix} | awk '{print \$1}' | awk -F ':' '{print \$2}' | awk -F '-' '{print \$2}' | tail -5 > tags"
 		def tags = readFile("tags").trim()
 		selectedTag = input message: "Choose version",
-            parameters: [choice(choices: tags, description: '', name: 'Versions')]
+            parameters: [choice(choices: v1, description: '', name: 'Versions')]
 
 		return selectedTag
 }
