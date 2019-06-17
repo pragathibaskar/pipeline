@@ -1,115 +1,52 @@
-/**
- * Author: Leandro Beretta <lberetta@redhat.com>
- */
+#!groovy
 
-try {
-    timeout(time: 10, unit: 'MINUTES') {
-
-        node() {
-
-            stage("Choose Version") {
-                env.version = selectVersion("parking-api", "DevSnapshot");
-            }
-
-            def newTag = "TestingCandidate-" + env.version
-
-            openshiftTag alias: "false",
-                    destStream: "parking-api",
-                    destTag: newTag,
-                    destinationNamespace: "consum-dev",
-                    namespace: "consum-dev",
-                    srcStream: "parking-api",
-                    srcTag: "DevSnapshot-" + env.version,
-                    verbose: "true"
-
-            stage("Deploy to Test") {
-                sh "oc project consum-test"
-                sh "oc patch dc app --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"app\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"parking-api:TestingCandidate-$version\"}}}]}}' -n consum-test"
-
-                openshiftDeploy depCfg: "parking-api",
-                        namespace: "consum-test"
-            }
-
-            stage("Integration Test") {
-                // Complete this section with your actual integration consum-tests
-
-                newTag = "ProdReady-" + env.version
-
-                openshiftTag alias: "false",
-                        destStream: "parking-api",
-                        destTag: newTag,
-                        destinationNamespace: "consum-dev",
-                        namespace: "consum-dev",
-                        srcStream: "parking-api",
-                        srcTag: "TestingCandidate-" + env.version,
-                        verbose: "false"
-            }
-
-            stage('Deploy Pre-prod?') {
-                input "Deploy new version to Pre-production?"
-            }
-
-            // Blue/Green
-
-            def dest = "api-green"
-            def active = ""
-
-            stage("Deploy to Pre-prod") {
-
-                sh "oc project consum-prod"
-                sh "oc get route blue-green -n consum-prod -o jsonpath='{ .spec.to.name }' > active"
-
-                active = readFile("active").trim()
-
-                if (active == "api-green")
-                    dest = "api-blue"
-
-                sh "oc patch dc ${dest} --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"$dest\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"parking-api:ProdReady--$version\"}}}]}}' -n consum-prod"
-
-                openshiftDeploy depCfg: dest,
-                        namespace: 'consum-prod'
-            }
-
-            stage("Switch Version?") {
-                input "Switch to new version?"
-            }
-
-            sh "oc patch route blue-green -n consum-prod -p '{ \"spec\" : { \"to\" : { \"name\" : \"$dest\" } } }'"
-
-            stage("Finish Deployment") {
-                rollback = input message: "Rollback to previous version?",
-                        parameters: [choice(choices: "Yes\nNo", description: '', name: 'Rollback')]
-            }
-
-            if (rollback.equals('Yes')) {
-                sh "oc patch route blue-green -n consum-prod -p '{ \"spec\" : { \"to\" : {\"name\" : \"$active\" } } }'"
-                echo "Deployment rolled back successfully"
-            } else {
-                echo "Deployment finished successfully"
-            }
+timeout(time: 60, unit: 'MINUTES'){
+	node {
+	
+	// Wait until authorization to push to production
+    stage('Approve QA Deployment') {
+        timeout(time: 2, unit: 'DAYS') {
+            input message: 'Do you want to deploy into QA?'
         }
     }
-} catch (err) {
-    echo "Caught: ${err}"
-    currentBuild.result = 'FAILURE'
+	
+	stage("Choose Version") {
+		sh "oc project consum-dev"
+        env.version = selectVersion("parking-api", "consum-dev-", "consum-dev");
+    }
+	
+    // Publish to a QA environment
+    stage('Deploy to QA') {
+		sh "oc project consum-test"
+		openshiftTag alias: 'false', apiURL: '', authToken: '', destStream: 'parking-api', destTag: "qa-${version}", destinationAuthToken: '', destinationNamespace: 'consum-dev', namespace: 'consum-dev', srcStream: 'parking-api', srcTag: "consum-dev-${version}", verbose: 'false'
+		sh "oc patch dc parking-api-qa --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"parking-api-qa\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"parking-api:qa-$version\"}}}]}}' -n consum-test"
+        openshiftDeploy apiURL: '', authToken: '', depCfg: 'parking-api-qa', namespace: 'consum-test', verbose: 'false', waitTime: ''
+        openshiftVerifyDeployment apiURL: '', authToken: '', depCfg: 'parking-api-qa', namespace: 'consum-test', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: ''
 
-    throw err
+        openshiftTag alias: 'false', apiURL: '', authToken: '', destStream: 'parking-api', destTag: "prod-$version", destinationAuthToken: '', destinationNamespace: 'consum-dev', namespace: 'consum-dev', srcStream: 'parking-api', srcTag: "qa-$version", verbose: 'false'
+    }
+    // Wait until authorization to push to production
+    stage('Approve Production Deployment') {
+        timeout(time: 2, unit: 'DAYS') {
+            input message: 'Do you want to deploy into production?'
+        }
+    }
+    // Push to production
+    stage('Deploy to Production') {
+		sh "oc project consum-prod"
+		sh "oc patch dc api-green --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"api-green\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"parking-api:prod-$version\"}}}]}}' -n consum-prod"
+        openshiftDeploy apiURL: '', authToken: '', depCfg: "api-green", namespace: 'consum-prod', verbose: 'false', waitTime: ''
+        openshiftVerifyDeployment apiURL: '', authToken: '', depCfg: "api-green" , namespace: 'consum-prod', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: ''
+    }
+	}
 }
 
-def getVersionFromPom(pom) {
-    def matcher = readFile(pom) =~ '<version>(.+)</version>'
-    matcher ? matcher[0][1] : null
-}
-
-def selectVersion(imageName, tagPrefix) {
-    def selectedTag = ""
-
-    sh "oc get istag -n consum-dev --sort-by='{.metadata.name}'| grep ${imageName}| grep ${tagPrefix} | awk '{print \$1}' | awk -F ':' '{print \$2}' | awk -F '-' '{print \$2}' | tail -5 > tags"
-
-    def tags = readFile("tags").trim()
-
-    selectedTag = input message: "Choose version",
+def selectVersion(imageName, tagPrefix, namespace) {
+		def selectedTag = ""
+		sh "oc get istag -n ${namespace} --sort-by='{.metadata.name}'| grep ${imageName}| grep ${tagPrefix} | awk '{print \$1}' | awk -F ':' '{print \$2}' | awk -F '-' '{print \$2}' | tail -5 > tags"
+		def tags = readFile("tags").trim()
+		selectedTag = input message: "Choose version",
             parameters: [choice(choices: tags, description: '', name: 'Versions')]
 
-    return selectedTag
+		return selectedTag
 }
