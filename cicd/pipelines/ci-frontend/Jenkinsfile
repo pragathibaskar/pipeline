@@ -8,7 +8,7 @@ timeout(time: 60, unit: 'MINUTES'){
 	  stage('Checkout') {
         checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/pragathibaskar/gestion-parking-frontend.git']]])
       }
-	  def version = latest
+	  def version = "latest"
 	  
 	  stage('OpenShift Build') {
 		sh "oc project consum-dev"
