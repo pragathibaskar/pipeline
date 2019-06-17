@@ -12,7 +12,7 @@ timeout(time: 60, unit: 'MINUTES'){
 	
 	stage("Choose Version") {
 		sh "oc project consum-dev"
-        env.version = selectVersion("parking-api", "dev-", "consum-dev");
+        env.version = selectVersion("parking-api", "-", "consum-dev");
     }
 	
     // Publish to a QA environment
