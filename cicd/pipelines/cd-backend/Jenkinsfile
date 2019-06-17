@@ -8,25 +8,25 @@ try {
         node() {
 
             stage("Choose Version") {
-                env.version = selectVersion("app", "DevSnapshot");
+                env.version = selectVersion("parking-api", "DevSnapshot");
             }
 
             def newTag = "TestingCandidate-" + env.version
 
             openshiftTag alias: "false",
-                    destStream: "app",
+                    destStream: "parking-api",
                     destTag: newTag,
                     destinationNamespace: "consum-dev",
                     namespace: "consum-dev",
-                    srcStream: "app",
+                    srcStream: "parking-api",
                     srcTag: "DevSnapshot-" + env.version,
                     verbose: "true"
 
             stage("Deploy to Test") {
                 sh "oc project consum-test"
-                sh "oc patch dc app --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"app\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"app:TestingCandidate-$version\"}}}]}}' -n consum-test"
+                sh "oc patch dc app --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"app\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"parking-api:TestingCandidate-$version\"}}}]}}' -n consum-test"
 
-                openshiftDeploy depCfg: "app",
+                openshiftDeploy depCfg: "parking-api",
                         namespace: "consum-test"
             }
 
@@ -36,11 +36,11 @@ try {
                 newTag = "ProdReady-" + env.version
 
                 openshiftTag alias: "false",
-                        destStream: "app",
+                        destStream: "parking-api",
                         destTag: newTag,
                         destinationNamespace: "consum-dev",
                         namespace: "consum-dev",
-                        srcStream: "app",
+                        srcStream: "parking-api",
                         srcTag: "TestingCandidate-" + env.version,
                         verbose: "false"
             }
@@ -64,7 +64,7 @@ try {
                 if (active == "api-green")
                     dest = "api-blue"
 
-                sh "oc patch dc ${dest} --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"$dest\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"app:ProdReady--$version\"}}}]}}' -n consum-prod"
+                sh "oc patch dc ${dest} --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"$dest\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"parking-api:ProdReady--$version\"}}}]}}' -n consum-prod"
 
                 openshiftDeploy depCfg: dest,
                         namespace: 'consum-prod'
