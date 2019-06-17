@@ -12,7 +12,7 @@ timeout(time: 60, unit: 'MINUTES'){
 	
 	stage("Choose Version") {
 		sh "oc project consum-dev"
-        env.version = selectVersion("parking-api", "-", "consum-dev");
+        env.version = selectVersion("parking-api", "consum-dev-", "consum-dev");
     }
 	
     // Publish to a QA environment
@@ -44,6 +44,7 @@ timeout(time: 60, unit: 'MINUTES'){
 def selectVersion(imageName, tagPrefix, namespace) {
 		def selectedTag = ""
 		sh "oc get istag -n ${namespace} --sort-by='{.metadata.name}'| grep ${imageName}| grep ${tagPrefix} | awk '{print \$1}' | awk -F ':' '{print \$2}' | awk -F '-' '{print \$2}' | tail -5 > tags"
+		echo tags
 		def tags = readFile("tags").trim()
 		selectedTag = input message: "Choose version",
             parameters: [choice(choices: tags, description: '', name: 'Versions')]
