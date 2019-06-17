@@ -43,8 +43,8 @@ timeout(time: 60, unit: 'MINUTES'){
 
 def selectVersion(imageName, tagPrefix, namespace) {
 		def selectedTag = ""
-		sh "oc get istag -n ${namespace} --sort-by='{.metadata.name}'| grep ${imageName}| grep ${tagPrefix} | awk '{print \$1}' | awk -F ':' '{print \$2}' | awk -F '-' '{print \$2}' | tail -5 > tags"
-		def tags = readFile("tags")
+		sh "oc get istag -n ${namespace} --sort-by='{.metadata.name}'| grep ${imageName}| grep ${tagPrefix} | awk '{print \$1}' | awk -F ':' '{print \$2}' | awk -F 'dev-' '{print \$2}' | tail -5 > tags"
+		def tags = readFile("tags").trim()
 		echo tags
 		selectedTag = input message: "Choose version",
             parameters: [choice(choices: tags, description: '', name: 'Versions')]
