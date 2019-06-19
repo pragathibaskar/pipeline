@@ -35,7 +35,7 @@ timeout(time: 60, unit: 'MINUTES'){
     def active = ""
     stage('Deploy to Production') {
 		sh "oc project consum-prod"
-		sh "oc get route app-green -n prod -o jsonpath='{ .spec.to.name }' > active"
+		sh "oc get route app-green -n consum-prod -o jsonpath='{ .spec.to.name }' > active"
         active = readFile("active").trim()
         if (active == "app-green")
             dest = "app-blue"
