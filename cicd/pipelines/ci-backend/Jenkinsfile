@@ -6,23 +6,23 @@ timeout(time: 60, unit: 'MINUTES'){
 	  // with the S2I image.
 	  
 	  stage('Checkout') {
-        checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/pragathibaskar/gestion-backend.git']]])
+        checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/pragathibaskar/parking-backend.git',credentialsId:'mygit']]]])
       }
 	  def version = readMavenPom().getVersion()
 	  
 	  stage('OpenShift Build') {
-		sh "oc project consum-dev"
-		openshiftBuild apiURL: '', authToken: '', bldCfg: 'parking-api', waitTime: '1800000', checkForTriggeredDeployments: 'false', namespace: 'consum-dev', verbose: 'false'
-		openshiftVerifyBuild apiURL: '', authToken: '', bldCfg: 'parking-api', checkForTriggeredDeployments: 'false', namespace: 'consum-dev', verbose: 'false'
-		openshiftTag alias: 'false', apiURL: '', authToken: '', destStream: 'parking-api', destTag: "consum-dev-${version}", destinationAuthToken: '', destinationNamespace: 'consum-dev', namespace: 'consum-dev', srcStream: 'parking-api', srcTag: 'latest', verbose: 'false'
+		sh "oc project dev"
+		openshiftBuild apiURL: '', authToken: '', bldCfg: 'parking-api', waitTime: '1800000', checkForTriggeredDeployments: 'false', namespace: 'dev', verbose: 'false'
+		openshiftVerifyBuild apiURL: '', authToken: '', bldCfg: 'parking-api', checkForTriggeredDeployments: 'false', namespace: 'dev', verbose: 'false'
+		openshiftTag alias: 'false', apiURL: '', authToken: '', destStream: 'parking-api', destTag: "dev-${version}", destinationAuthToken: '', destinationNamespace: 'dev', namespace: 'dev', srcStream: 'parking-api', srcTag: 'latest', verbose: 'false'
 	  }
 	  
 	  // Deploy the created S2I Image
 	  stage('OpenShift Deployment') {
-		sh "oc patch dc parking-api --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"parking-api\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"parking-api:consum-dev-$version\"}}}]}}' -n consum-dev"
-		openshiftDeploy apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'consum-dev', verbose: 'false', waitTime: ''
-		openshiftScale apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'consum-dev', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false'
-		openshiftVerifyDeployment apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'consum-dev', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: ''
+		sh "oc patch dc parking-api --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"parking-api\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"dev\", \"name\": \"parking-api:dev-$version\"}}}]}}' -n dev"
+		openshiftDeploy apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'dev', verbose: 'false', waitTime: ''
+		openshiftScale apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'dev', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false'
+		openshiftVerifyDeployment apiURL: '', authToken: '', depCfg: 'parking-api', namespace: 'dev', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: ''
 	  }
 	  stage('Verify Service') {
 		// Starting the entertainment application takes a long time.
