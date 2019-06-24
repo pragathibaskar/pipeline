@@ -11,19 +11,19 @@ timeout(time: 60, unit: 'MINUTES'){
     }
 	
 	stage("Choose Version") {
-		sh "oc project consum-dev"
-        env.version = selectVersion("parking", "consum-dev-", "consum-dev");
+		sh "oc project dev"
+        env.version = selectVersion("parking", "dev-", "dev");
     }
 	
     // Publish to a QA environment
     stage('Deploy to QA') {
-		sh "oc project consum-test"
-		openshiftTag alias: 'false', apiURL: '', authToken: '', destStream: 'parking', destTag: "qa-${version}", destinationAuthToken: '', destinationNamespace: 'consum-dev', namespace: 'consum-dev', srcStream: 'parking', srcTag: "consum-dev-${version}", verbose: 'false'
-		sh "oc patch dc parking-qa --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"parking-qa\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"parking:qa-$version\"}}}]}}' -n consum-test"
-        openshiftDeploy apiURL: '', authToken: '', depCfg: 'parking-qa', namespace: 'consum-test', verbose: 'false', waitTime: ''
-        openshiftVerifyDeployment apiURL: '', authToken: '', depCfg: 'parking-qa', namespace: 'consum-test', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: ''
+		sh "oc project test"
+		openshiftTag alias: 'false', apiURL: '', authToken: '', destStream: 'parking', destTag: "qa-${version}", destinationAuthToken: '', destinationNamespace: 'dev', namespace: 'dev', srcStream: 'parking', srcTag: "dev-${version}", verbose: 'false'
+		sh "oc patch dc parking-qa --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"parking-qa\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"dev\", \"name\": \"parking:qa-$version\"}}}]}}' -n test"
+        openshiftDeploy apiURL: '', authToken: '', depCfg: 'parking-qa', namespace: 'test', verbose: 'false', waitTime: ''
+        openshiftVerifyDeployment apiURL: '', authToken: '', depCfg: 'parking-qa', namespace: 'test', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: ''
 
-        openshiftTag alias: 'false', apiURL: '', authToken: '', destStream: 'parking', destTag: "prod-$version", destinationAuthToken: '', destinationNamespace: 'consum-dev', namespace: 'consum-dev', srcStream: 'parking', srcTag: "qa-$version", verbose: 'false'
+        openshiftTag alias: 'false', apiURL: '', authToken: '', destStream: 'parking', destTag: "prod-$version", destinationAuthToken: '', destinationNamespace: 'dev', namespace: 'dev', srcStream: 'parking', srcTag: "qa-$version", verbose: 'false'
     }
     // Wait until authorization to push to production
     stage('Approve Production Deployment') {
@@ -33,17 +33,17 @@ timeout(time: 60, unit: 'MINUTES'){
     }
     // Push to production
     stage('Deploy to Production') {
-		sh "oc project consum-prod"
-		sh "oc patch dc app-green --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"app-green\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"consum-dev\", \"name\": \"parking:prod-$version\"}}}]}}' -n consum-prod"
-        openshiftDeploy apiURL: '', authToken: '', depCfg: "app-green", namespace: 'consum-prod', verbose: 'false', waitTime: ''
-        openshiftVerifyDeployment apiURL: '', authToken: '', depCfg: "app-green" , namespace: 'consum-prod', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: ''
+		sh "oc project prod"
+		sh "oc patch dc app-green --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"app-green\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"dev\", \"name\": \"parking:prod-$version\"}}}]}}' -n prod"
+        openshiftDeploy apiURL: '', authToken: '', depCfg: "app-green", namespace: 'prod', verbose: 'false', waitTime: ''
+        openshiftVerifyDeployment apiURL: '', authToken: '', depCfg: "app-green" , namespace: 'prod', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: ''
     }
 	}
 }
 
 def selectVersion(imageName, tagPrefix, namespace) {
 		def selectedTag = ""
-		sh "oc get istag -n ${namespace} --sort-by='{.metadata.name}'| grep ${imageName}| grep ${tagPrefix} | awk '{print \$1}' | awk -F ':' '{print \$2}' | awk -F 'dev-' '{print \$2}' | tail -5 > tags"
+		sh "oc get istag -n ${namespace} --sort-by='{.metadata.name}'| grep ${imageName}| grep ${tagPrefix} | awk '{print \$1}' | awk -F ':' '{print \$2}' | awk -F '-' '{print \$2}' | tail -5 > tags"
 		def tags = readFile("tags").trim()
 		echo tags
 		selectedTag = input message: "Choose version",
