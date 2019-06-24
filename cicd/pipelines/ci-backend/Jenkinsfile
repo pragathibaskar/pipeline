@@ -6,7 +6,7 @@ timeout(time: 60, unit: 'MINUTES'){
 	  // with the S2I image.
 	  
 	  stage('Checkout') {
-        checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/pragathibaskar/parking-backend.git',credentialsId:'mygit']]]])
+        checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/pragathibaskar/parking-backend.git',credentialsId:'mygit']]])
       }
 	  def version = readMavenPom().getVersion()
 	  
