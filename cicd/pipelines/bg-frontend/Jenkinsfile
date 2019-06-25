@@ -48,7 +48,7 @@ timeout(time: 60, unit: 'MINUTES'){
 	stage("Switch Version?") {
         input "Switch to new version?"
     }
-	sh "oc patch route blue-green -n consum-prod -p '{ \"spec\" : { \"to\" : { \"name\" : \"$dest\" } } }'"
+	sh "oc patch route blue-green -n prod -p '{ \"spec\" : { \"to\" : { \"name\" : \"$dest\" } } }'"
 	
 	stage("Finish Deployment") {
         rollback = input message: "Rollback to previous version?",
