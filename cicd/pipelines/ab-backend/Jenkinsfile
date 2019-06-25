@@ -12,7 +12,7 @@ node() {
     greenTraffic = 100 - blueTraffic.toInteger()
 
     stage("Changing Traffic") {
-        sh "oc project consum-prod"
-        sh "oc set route-backends blue-green api-blue=$blueTraffic api-green=$greenTraffic"
+        sh "oc project prod"
+        sh "oc set route-backends app-green api-blue=$blueTraffic api-green=$greenTraffic"
     }
 }
